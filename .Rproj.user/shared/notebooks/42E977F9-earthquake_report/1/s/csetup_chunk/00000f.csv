@@ -1,4 +1,0 @@
-"0","knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)"
-"0","library(tidyverse)"
-"0","library(glue)"
-"0","library(knitr)"
