@@ -1,0 +1,48 @@
+---
+title: "Eval 1: Automated Earthquake Sentences"
+author: "Your Name"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## 1. Load libraries
+
+```{r}
+library(tidyverse)
+```
+
+## 2. Load data
+
+```{r}
+earthquakes <- read_csv("data/all_month.csv")
+
+earthquakes
+```
+
+## 3. Filter and generate sentences
+
+Choose your own criteria:
+1. Pick a minimum magnitude (e.g., 4.5, 5.0, 6.0)
+2. Pick a location (e.g., "California", "Alaska", "Indonesia", "Mexico")
+3. Fill in the blanks below with your choices
+
+```{r}
+# Filter the data
+filtered_earthquakes <- earthquakes |>
+  filter(mag >= ___ & str_detect(place, "___"))
+
+# Generate sentences
+earthquake_sentences <- filtered_earthquakes |>
+  mutate(
+    date = format(time, "%B %d, %Y"),
+    time_formatted = format(time, "%H:%M:%S UTC"),
+    sentence = glue::glue("At {time_formatted} on {date}, an earthquake of {mag} was recorded {place}.")
+  )
+
+# Display the sentences
+earthquake_sentences |>
+  select(sentence) |>
+  pull()
+```

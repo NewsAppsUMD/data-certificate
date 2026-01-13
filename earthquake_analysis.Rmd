@@ -1,0 +1,48 @@
+---
+title: "Earthquake Sentences - Lesson 2"
+author: "Your Name"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Load Libraries
+
+```{r libraries}
+library(tidyverse)
+```
+
+## Read the Data
+
+```{r read-data}
+earthquakes <- read_csv("all_month.csv")
+```
+
+## Filter Earthquakes
+
+Filter for earthquakes with magnitude 5 or greater in Japan.
+
+```{r filter-data}
+filtered_earthquakes <- earthquakes |>
+  filter(mag >= 5 & str_detect(place, "Japan"))
+```
+
+## Generate Earthquake Sentences
+
+```{r generate-sentences}
+earthquake_sentences <- filtered_earthquakes |>
+  mutate(
+    date = format(time, "%B %d, %Y"),
+    time_formatted = format(time, "%H:%M:%S UTC"),
+    sentence = glue::glue("At {time_formatted} on {date}, an earthquake of {mag} was recorded {place}.")
+  )
+```
+
+## Display Results
+
+```{r display-results}
+earthquake_sentences |>
+  select(sentence) |>
+  pull()
+```
