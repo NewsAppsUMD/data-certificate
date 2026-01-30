@@ -1,0 +1,82 @@
+---
+title: "text_extract_example"
+---
+
+## Introduction
+
+This example demonstrates how to use Large Language Models (LLMs) to extract structured data from unstructured text. We'll work with a text file containing attorney sanctions from the Maryland Attorney Grievance Commission for Fiscal Year 2025.
+
+The document lists disciplinary actions taken against attorneys, including suspensions, disbarments, and reprimands. Each entry contains the attorney's name, the type of sanction, the date of the action, and a description of the violations. This information is presented as narrative text rather than structured data, making it a good candidate for LLM-based extraction.
+
+The goal is to convert this unstructured text into a structured dataset (a dataframe) that we can analyze. We'll use the `ellmer` library to interact with an LLM via Groq's API, instructing it to extract key information and format it as JSON objects that can be converted into tidy data.
+
+#### Load the tidyverse and a library called `ellmer` that allows R to interact with LLMs, along with some additional helper libraries
+```{r}
+library(tidyverse)
+library(ellmer)
+library(jsonlite)
+library(lubridate)
+```
+
+#### Next, we load our API key into our code, replacing the text below with your copied API key:
+```{r}
+Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+```
+
+#### Create a chat session
+```{r}
+chat <- chat_groq(
+  model = "meta-llama/llama-4-scout-17b-16e-instruct",
+)
+```
+
+#### Structured Data Extraction
+Ellmer does support the production of structured output (data), but Groq doesn't yet, so we're going to do things the old-fashioned way. Let's work with some descriptions of Maryland attorney sanctions and convert it to JSON that we can then turn into a dataframe:
+
+```{r load-sanctions-data}
+# Read the sanctions text file
+sanctions_text <- readLines("sanctionsfy25.txt", warn = FALSE)
+sanctions_content <- paste(sanctions_text, collapse = "\n")
+
+# Display first few lines
+cat("Sanctions data preview:\n")
+cat(paste(head(sanctions_text, 10), collapse = "\n"))
+```
+
+```{r extract-structured-data}
+# Create prompt for structured data extraction
+structured_response <- chat$chat(paste(
+  "produce only a list of JSON objects based on the supplied text with the following keys: name, sanction, date, description.",
+  "The date should be in the yyyy-mm-dd format. Do not include any introductory text, no yapping.",
+  "\nText:",
+  sanctions_content
+))
+
+# Display the response
+cat("Structured Data Response:\n")
+cat(structured_response)
+```
+
+Then we can turn it into tidy data:
+
+```{r parse-json-data}
+# Parse the JSON response
+sanctions_df <- fromJSON(structured_response) |>
+  as_tibble() |>
+  mutate(date = ymd(date))
+
+# Display the resulting dataframe
+sanctions_df
+```
+
+## Evaluation
+
+How well did the LLM perform on this data extraction task? How should we evaluate it?
+
+**Questions to consider:**
+- Are all attorneys from the source document present in the extracted data?
+- Are the dates correctly formatted and accurate?
+- Are the sanction types (disbarment, suspension, reprimand) correctly identified?
+- Are there any hallucinations or invented information?
+- How would you verify the accuracy of this extraction at scale?
+```

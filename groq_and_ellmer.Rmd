@@ -1,0 +1,52 @@
+---
+title: "Ellmer setup"
+---
+
+#### Load tidyverse and a library called `ellmer` that allows R to interact with LLMs.
+```{r}
+library(tidyverse)
+library(ellmer)
+```
+
+
+#### Next, we load our API key into our code, replacing the text below with your copied API key:
+```{r}
+Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+```
+
+#### Now we are ready to set up the model to talk to us when we use a variable called `chat`. Then we test it, by putting what we want to say to the LLM between quotes and parentheses.
+
+```{r groq-setup}
+
+# Set the model
+chat <- chat_groq(
+  model = "meta-llama/llama-4-scout-17b-16e-instruct"
+)
+
+chat$chat("Give me 20 names for a pet turtle")
+
+```
+
+#### Let's repeat the example using John Donne's poem, "No Man Is an Island":
+
+```{r groq-poem}
+
+poem <- "
+No man is an island,
+Entire of itself;
+Every man is a piece of the continent,
+A part of the main.
+If a clod be washed away by the sea,
+Europe is the less,
+As well as if a promontory were:
+As well as if a manor of thy friend's
+Or of thine own were.
+Any man's death diminishes me,
+Because I am involved in mankind.
+And therefore never send to know for whom the bell tolls;
+It tolls for thee.
+"
+
+chat$chat(paste0("Extract all of the geographic terms in this poem: ", poem))
+
+```

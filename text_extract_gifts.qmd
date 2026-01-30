@@ -1,0 +1,101 @@
+---
+title: "foreign_gifts_extraction"
+---
+
+## Introduction
+
+This example demonstrates how to use Large Language Models (LLMs) to extract structured data from unstructured text. We'll work with a text file containing reports of gifts given to U.S. government officials by foreign governments and their representatives.
+
+The document is from the White House Executive Office of the President and lists gifts received by U.S. officials from foreign dignitaries. Each entry contains the recipient's name and title, a description of the gift, the date received, the estimated value, the foreign donor's identity, and the circumstances justifying acceptance. This information is presented in a complex tabular text format that spans multiple lines per record, making it an excellent candidate for LLM-based extraction.
+
+The goal is to convert this unstructured text into a structured dataset (a dataframe) that we can analyze. We'll use the `ellmer` library to interact with an LLM via Groq's API, instructing it to extract key information and format it as JSON objects that can be converted into tidy data.
+
+#### Load the tidyverse and a library called `ellmer` that allows R to interact with LLMs, along with some additional helper libraries
+```{r}
+library(tidyverse)
+library(ellmer)
+library(jsonlite)
+library(lubridate)
+```
+
+#### Next, we load our API key into our code, replacing the text below with your copied API key:
+```{r}
+Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+```
+
+#### Create a chat session
+```{r}
+chat <- chat_groq(
+  model = "meta-llama/llama-4-scout-17b-16e-instruct",
+)
+```
+
+#### Structured Data Extraction
+
+Ellmer does support the production of structured output (data), but Groq doesn't yet, so we're going to do things the old-fashioned way. Let's work with descriptions of foreign gifts given to U.S. officials and convert them to JSON that we can then turn into a dataframe:
+```{r load-gifts-data}
+# Read the foreign gifts text file
+gifts_text <- readLines("foreign_gifts.txt", warn = FALSE)
+gifts_content <- paste(gifts_text, collapse = "\n")
+
+# Display first few lines
+cat("Foreign gifts data preview:\n")
+cat(paste(head(gifts_text, 30), collapse = "\n"))
+```
+```{r extract-structured-data}
+# Create prompt for structured data extraction
+structured_response <- chat$chat(paste(
+  "produce only a list of JSON objects based on the supplied text with the following keys: name_and_title, gift_description, date, value, foreign_donor, circumstances.",
+  "The date should be in the yyyy-mm-dd format. The value should be numeric only, without dollar signs.",
+  "Do not include any introductory text, no yapping.",
+  "\nText:",
+  gifts_content
+))
+
+# Display the response
+cat("Structured Data Response:\n")
+cat(structured_response)
+```
+
+Then we can turn it into tidy data:
+```{r parse-json-data}
+# Parse the JSON response
+gifts_df <- fromJSON(structured_response) |>
+  as_tibble() |>
+  mutate(
+    date = ymd(date),
+    value = as.numeric(value)
+  )
+
+# Display the resulting dataframe
+gifts_df
+```
+
+## Evaluation
+
+How well did the LLM perform on this data extraction task? How should we evaluate it?
+
+**Questions to consider:**
+
+- Are all gift records from the source document present in the extracted data?
+- Are the dates correctly formatted and accurate?
+- Are the gift values correctly extracted as numeric values without dollar signs?
+- Are the foreign donor names and titles accurately captured?
+- Did the LLM correctly handle multi-line entries where information wraps across rows?
+- Are there any hallucinations or invented information?
+- How would you verify the accuracy of this extraction at scale?
+
+**Additional analysis questions:**
+```{r basic-analysis}
+# Count gifts by recipient
+gifts_df |>
+  count(name_and_title, sort = TRUE)
+
+# Calculate total value by donor country
+# Note: You might need to extract country from foreign_donor field
+
+# Find the most expensive gifts
+gifts_df |>
+  arrange(desc(value)) |>
+  head(10)
+```
