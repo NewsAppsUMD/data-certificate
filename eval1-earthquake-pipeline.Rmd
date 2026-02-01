@@ -1,0 +1,85 @@
+---
+title: "Eval 2: Earthquake Pipeline"
+author: "Your Name"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+This notebook fetches earthquake data from USGS, updates a local dataset, and generates automated sentences for significant earthquakes.
+
+## 1. Setup
+```{r load-libraries}
+library(tidyverse)
+library(glue)
+library(lubridate)
+```
+
+## 2. Load Existing Data
+```{r load-data}
+# Read the existing data
+existing_earthquakes <- read_csv("data/earthquakes.csv")
+```
+
+## 3. Fetch Latest Data
+```{r fetch-usgs-data}
+# Fetch the latest daily data from USGS
+daily_earthquakes <- read_csv("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.csv")
+```
+
+## 4. Update Dataset
+```{r update-dataset}
+# Combine and remove duplicates based on the 'id' column
+all_earthquakes <- bind_rows(existing_earthquakes, daily_earthquakes) |>
+  distinct(id, .keep_all = TRUE)
+
+# Save the updated dataset
+write_csv(all_earthquakes, "earthquakes.csv")
+```
+
+## 5. Filter for Significant Earthquakes
+
+Choose your own criteria for filtering earthquakes. Replace the ___ with:
+
+1. A minimum magnitude (e.g., 4.5, 5.0, 6.0)
+2. A location to search for (e.g., "Hawaii", "Alaska", "Japan", "Mexico")
+3. A time period in days (e.g., 1, 2, 7)
+
+**Hint:** Magnitude and days should be numbers (no quotes), location should be in quotes.
+```{r filter-earthquakes}
+# Filter based on your criteria
+filtered_earthquakes <- all_earthquakes |>
+  filter(
+    mag >= 4.0 &
+      str_detect(place, "Tonga") &
+      time >= (now() - days(7))
+  )
+```
+
+## 6. Generate Automated Sentences
+```{r generate-sentences}
+# Generate sentences for each earthquake
+earthquake_sentences <- filtered_earthquakes |>
+  mutate(
+    date = format(time, "%B %d, %Y"),
+    time_formatted = format(time, "%H:%M:%S UTC"),
+    sentence = glue("At {time_formatted} on {date}, an earthquake of {mag} {magType} was recorded {place}.")
+  )
+```
+
+## 7. Summary Report
+```{r summary-report, results='asis'}
+# Create summary notification
+if (nrow(earthquake_sentences) == 0) {
+  cat("No earthquakes matching your criteria were found.\n")
+} else {
+  num_quakes <- nrow(earthquake_sentences)
+  cat(glue("There {if(num_quakes == 1) 'was' else 'were'} {num_quakes} earthquake{if(num_quakes > 1) 's' else ''} matching your criteria:\n\n"))
+  
+  earthquake_sentences |>
+    pull(sentence) |>
+    walk(~cat(.x, "\n\n"))
+}
+```
+
+**Stop and save your work (File -> Save).**

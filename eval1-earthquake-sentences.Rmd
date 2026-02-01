@@ -16,7 +16,7 @@ library(tidyverse)
 ## 2. Load data
 
 ```{r}
-earthquakes <- read_csv("data/all_month.csv")
+earthquakes <- read_csv("all_month.csv")
 
 earthquakes
 ```
@@ -31,7 +31,7 @@ Choose your own criteria:
 ```{r}
 # Filter the data
 filtered_earthquakes <- earthquakes |>
-  filter(mag >= ___ & str_detect(place, "___"))
+  filter(mag >= 4.0 & str_detect(place, "Hawaii"))
 
 # Generate sentences
 earthquake_sentences <- filtered_earthquakes |>

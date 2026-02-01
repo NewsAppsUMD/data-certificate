@@ -1,0 +1,71 @@
+---
+title: "Earthquake Pipeline"
+---
+
+This notebook fetches earthquake data from USGS, updates a local dataset, and generates automated sentences for significant earthquakes in Japan.
+
+## Setup
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(glue)
+library(lubridate)
+```
+
+## Load Existing Data
+```{r load-data, message=FALSE}
+# Read the existing data
+existing_earthquakes <- read_csv("data/earthquakes.csv")
+```
+
+## Fetch Latest Data
+```{r fetch-usgs-data, message=FALSE}
+# Fetch the latest daily data from USGS
+daily_earthquakes <- read_csv("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.csv")
+```
+
+## Update Dataset
+```{r update-dataset}
+# Combine and remove duplicates based on the 'id' column
+all_earthquakes <- bind_rows(existing_earthquakes, daily_earthquakes) |>
+  distinct(id, .keep_all = TRUE)
+
+# Save the updated dataset
+write_csv(all_earthquakes, "data/earthquakes.csv")
+```
+
+## Filter for Significant Earthquakes
+```{r filter-earthquakes}
+# Filter based on the criteria AND past 24 hours
+filtered_earthquakes <- all_earthquakes |>
+  filter(
+    mag >= 5 &
+      str_detect(place, "Japan") &
+      time >= (now() - days(1))
+  )
+```
+
+## Generate Automated Sentences
+```{r generate-sentences}
+# Generate sentences for each earthquake
+earthquake_sentences <- filtered_earthquakes |>
+  mutate(
+    date = format(time, "%B %d, %Y"),
+    time_formatted = format(time, "%H:%M:%S UTC"),
+    sentence = glue("At {time_formatted} on {date}, an earthquake of {mag} {magType} was recorded {place}.")
+  )
+```
+
+## Summary Report
+```{r summary-report, results='asis'}
+# Create summary notification
+if (nrow(earthquake_sentences) == 0) {
+  cat("No earthquakes of magnitude 5 or greater were recorded near Japan in the past 24 hours.\n")
+} else {
+  num_quakes <- nrow(earthquake_sentences)
+  cat(glue("There {if(num_quakes == 1) 'was' else 'were'} {num_quakes} earthquake{if(num_quakes > 1) 's' else ''} of magnitude 5 or greater recorded in Japan in the past 24 hours:\n\n"))
+  
+  earthquake_sentences |>
+    pull(sentence) |>
+    walk(~cat(.x, "\n\n"))
+}
+```

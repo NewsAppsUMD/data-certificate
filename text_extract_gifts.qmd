@@ -1,5 +1,5 @@
 ---
-title: "foreign_gifts_extraction"
+title: "Foreign Gifts Etraction"
 ---
 
 ## Introduction
@@ -26,7 +26,7 @@ Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
 #### Create a chat session
 ```{r}
 chat <- chat_groq(
-  model = "meta-llama/llama-4-scout-17b-16e-instruct",
+  model = "meta-llama/llama-4-scout-17b-16e-instruct"
 )
 ```
 
@@ -59,8 +59,22 @@ cat(structured_response)
 
 Then we can turn it into tidy data:
 ```{r parse-json-data}
+# Clean the response - remove markdown code fences and any trailing text
+clean_response <- structured_response
+# Remove code fences
+clean_response <- gsub("```json|```", "", clean_response)
+clean_response <- trimws(clean_response)
+
+# Extract just the JSON array (from first [ to last ])
+json_start <- regexpr("\\[", clean_response)[1]
+json_end <- tail(gregexpr("\\]", clean_response)[[1]], 1)
+
+if (json_start > 0 && json_end > 0) {
+  clean_response <- substr(clean_response, json_start, json_end)
+}
+
 # Parse the JSON response
-gifts_df <- fromJSON(structured_response) |>
+gifts_df <- fromJSON(clean_response) |>
   as_tibble() |>
   mutate(
     date = ymd(date),

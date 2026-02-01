@@ -1,0 +1,145 @@
+---
+title: "Earthquake Report"
+---
+
+Let's build an automated earthquake monitoring system. In this lesson, we will learn to combine existing data with new data, filter for recent events, and generate automated reports.
+
+### Open the work file
+|||info
+## Open the file `earthquake_report.qmd`
+Within RStudio, open the file by selecting: `File` -> `Open File` -> `workspace` -> `r-files` -> `earthquake_report.qmd`
+
+|||
+
+> The file contains a number of code blocks. You can run each code block by selecting the green triangle ("Run current chunk") in the upper right of the block. We will work through the blocks one by one below.
+
+## Part 1: Setup
+
+**1. Load libraries**
+
+Run this code block to load the tidyverse (which includes dplyr for data manipulation and stringr for text processing), plus glue for text formatting and lubridate for working with dates and times.
+```{r load-libraries, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(glue)
+library(lubridate)
+```
+
+## Part 2: Load and Update Data
+
+**2. Load existing data**
+
+First, we load our existing earthquake dataset that we've been building over time.
+```{r load-data, message=FALSE}
+# Read the existing data
+existing_earthquakes <- read_csv("data/earthquakes.csv")
+
+existing_earthquakes
+```
+
+**3. Fetch latest data from USGS**
+
+Now we'll fetch the most recent earthquake data from the USGS API. This gives us all earthquakes from the past 24 hours.
+```{r fetch-usgs-data, message=FALSE}
+# Fetch the latest daily data from USGS
+daily_earthquakes <- read_csv("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.csv")
+
+daily_earthquakes
+```
+
+**4. Combine and deduplicate**
+
+Here we combine our existing data with the new data and remove any duplicates. The `distinct()` function keeps only unique earthquakes based on their ID.
+```{r update-dataset}
+# Combine and remove duplicates based on the 'id' column
+all_earthquakes <- bind_rows(existing_earthquakes, daily_earthquakes) |>
+  distinct(id, .keep_all = TRUE)
+
+# Save the updated dataset
+write_csv(all_earthquakes, "data/earthquakes.csv")
+
+all_earthquakes
+```
+
+The `bind_rows()` function stacks the two datasets together, and `distinct()` ensures each earthquake appears only once.
+
+## Part 3: Filter for Recent Events
+
+**5. Filter for significant earthquakes**
+
+Now we'll filter the data to find earthquakes that meet specific criteria:
+
+- Magnitude of 4.0 or greater
+- Located in Indonesia
+- Occurred within the past 7 days
+
+```{r filter-earthquakes}
+# Filter based on the criteria AND past 7 days
+filtered_earthquakes <- all_earthquakes |>
+  filter(
+    mag >= 4 &
+      str_detect(place, "Indonesia") &
+      time >= (now() - days(7))
+  )
+
+filtered_earthquakes
+```
+
+The `now()` function gives us the current date/time, and `days(1)` subtracts 24 hours from it. This ensures we only get very recent earthquakes.
+
+## Part 4: Generate Automated Sentences
+
+**6. Create formatted sentences**
+
+Here we'll create human-readable sentences about each earthquake by:
+
+- Converting the timestamp to a readable date format
+- Extracting the time in UTC
+- Using `glue()` to combine all the information into a sentence
+```{r generate-sentences}
+# Generate sentences for each earthquake
+earthquake_sentences <- filtered_earthquakes |>
+  mutate(
+    date = format(time, "%B %d, %Y"),
+    time_formatted = format(time, "%H:%M:%S UTC"),
+    sentence = glue("At {time_formatted} on {date}, an earthquake of {mag} {magType} was recorded {place}.")
+  )
+
+earthquake_sentences
+```
+
+## Part 5: Display Summary Report
+
+**7. Create a summary with sentences**
+
+Finally, we'll create a summary that counts the earthquakes and displays the formatted sentences:
+```{r summary-report, results='asis'}
+# Create summary notification
+if (nrow(earthquake_sentences) == 0) {
+  cat("No earthquakes of magnitude 5 or greater were recorded near Indonesia in the past 7 days.\n")
+} else {
+  num_quakes <- nrow(earthquake_sentences)
+  cat(glue("There {if(num_quakes == 1) 'was' else 'were'} {num_quakes} earthquake{if(num_quakes > 1) 's' else ''} of magnitude 5 or greater recorded near Indonesia in the past 7 days:\n\n"))
+  
+  earthquake_sentences |>
+    pull(sentence) |>
+    walk(~cat(.x, "\n\n"))
+}
+```
+
+The `if/else` statement checks whether we found any earthquakes and displays an appropriate message. The `walk()` function prints each sentence on its own line.
+
+---
+
+**Stop and save your work (File -> Save).**
+
+Now you've created an automated earthquake monitoring pipeline!
+
+Remember:
+
+- `bind_rows()` combines multiple datasets
+- `distinct()` removes duplicate rows
+- `now()` and `days()` help filter by time
+- The pipe operator (`|>`) chains operations together
+- Conditional logic (`if/else`) makes reports more readable
+
+Take a few minutes now to try modifying the filters (try different locations or magnitudes) or the time period (try `days(7)` for the past week).

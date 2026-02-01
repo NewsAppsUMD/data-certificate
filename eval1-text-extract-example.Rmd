@@ -1,0 +1,94 @@
+---
+title: "Eval: Attorney Sanctions Text Extraction"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+Now you will extract structured information from a text file using what we learned in the last lesson.
+
+## 1. Load Libraries
+
+Run this code block to load the required libraries.
+```{r load-libraries}
+library(tidyverse)
+library(ellmer)
+library(jsonlite)
+library(lubridate)
+```
+
+## 2. Setup ellmer
+
+Replace the text below with your Groq API key, then run the code block.
+```{r api-setup}
+Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+
+chat <- chat_groq(
+  model = "meta-llama/llama-4-scout-17b-16e-instruct"
+)
+```
+
+## 3. Read the Text File
+
+Run this code block to load and preview the sanctions data.
+```{r read-data}
+sanctions_text <- readLines("data/sanctionsfy25.txt", warn = FALSE)
+sanctions_content <- paste(sanctions_text, collapse = "\n")
+
+cat("Sanctions data preview:\n")
+cat(paste(head(sanctions_text, 10), collapse = "\n"))
+```
+
+## 4. Create Your Extraction Prompt
+
+Modify the prompt below to extract structured data with the following keys:
+
+1. **name** - The attorney's name
+2. **sanction** - The type of sanction imposed
+3. **date** - The date of the sanction (in yyyy-mm-dd format)
+4. **description** - A description of the violation
+
+Replace the ___ with the appropriate key names in the prompt.
+
+**Hint:** Make sure your keys match exactly: name, sanction, date, description
+```{r create-prompt}
+structured_response <- chat$chat(paste(
+  "produce only a list of JSON objects based on the supplied text with the following keys: ___, ___, ___, ___.",
+  "an example would be: 
+  {
+    \"name\": \"DAVIS, Mary Elizabeth\",
+    \"sanction\": \"Suspension for thirty days\",
+    \"date\": \"2023-07-29\",
+    \"description\": \"representing a client involving a conflict of interest and engaging in conduct that is prejudicial to the administration of justice\"
+  }",
+  "The date should be in the yyyy-mm-dd format. Do not include any introductory text, no yapping.",
+  "\nText:",
+  sanctions_content
+))
+```
+
+## 5. Display the Response
+
+Run this code block to see the structured response from the LLM.
+```{r display-response}
+cat("Structured Data Response:\n")
+cat(structured_response)
+```
+
+## 6. Convert to Dataframe
+
+Run this code block to convert the JSON response into a dataframe.
+```{r create-dataframe}
+# Clean the response - remove markdown code fences if present
+clean_response <- gsub("```json|```", "", structured_response)
+clean_response <- trimws(clean_response)
+
+# Create dataframe with cleaned response
+sanctions_df <- fromJSON(clean_response) |>
+  as_tibble() |>
+  mutate(date = ymd(date))
+
+sanctions_df
+```
+
+**Stop and save your work (File -> Save).**

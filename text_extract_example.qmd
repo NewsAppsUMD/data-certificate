@@ -20,7 +20,7 @@ library(lubridate)
 
 #### Next, we load our API key into our code, replacing the text below with your copied API key:
 ```{r}
-Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+Sys.setenv(GROQ_API_KEY = "GROQ API KEY HERE")
 ```
 
 #### Create a chat session

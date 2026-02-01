@@ -1,0 +1,107 @@
+---
+title: "Eval: Foreign Gifts Extraction"
+author: "Your Name"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+Now you will extract structured information from a foreign gifts document using what we learned in the last lesson.
+
+## 1. Load Libraries
+
+Run this code block to load the required libraries.
+```{r load-libraries}
+library(tidyverse)
+library(ellmer)
+library(jsonlite)
+library(lubridate)
+```
+
+## 2. Setup ellmer
+
+Replace the text below with your Groq API key, then run the code block.
+```{r api-setup}
+Sys.setenv(GROQ_API_KEY = "YOUR GROQ API KEY HERE")
+
+chat <- chat_groq(
+  model = "meta-llama/llama-4-scout-17b-16e-instruct"
+)
+```
+
+## 3. Read the Text File
+
+Run this code block to load the foreign gifts data.
+```{r read-data}
+gifts_text <- readLines("data/foreign_gifts.txt", warn = FALSE)
+gifts_content <- paste(gifts_text, collapse = "\n")
+```
+
+## 4. Create Your Extraction Prompt
+
+Modify the prompt below to extract structured data with the following keys:
+
+1. **name_and_title** - The recipient's name and official title
+2. **gift_description** - Description of the gift received
+3. **date** - The date the gift was received (in yyyy-mm-dd format)
+4. **value** - The estimated value (numeric only, no dollar signs)
+5. **foreign_donor** - The identity of the foreign donor
+6. **circumstances** - The circumstances justifying acceptance
+
+Replace the ___ with the appropriate key names in the prompt.
+
+**Hint:** Make sure your keys match exactly: name_and_title, gift_description, date, value, foreign_donor, circumstances
+```{r create-prompt}
+structured_response <- chat$chat(paste(
+  "produce only a list of JSON objects based on the supplied text with the following keys: name_and_title, gift_description, date, value, foreign_donor, circumstances.",
+  "The date should be in the yyyy-mm-dd format. The value should be numeric only, without dollar signs.",
+  "Do not include any introductory text, no yapping.",
+  "\nText:",
+  gifts_content
+))
+```
+
+## 5. Convert to Dataframe
+
+Run this code block to convert the JSON response into a dataframe.
+```{r create-dataframe}
+# Clean the response - remove markdown code fences and any trailing text
+clean_response <- structured_response
+# Remove code fences
+clean_response <- gsub("```json|```", "", clean_response)
+clean_response <- trimws(clean_response)
+
+# Extract just the JSON array (from first [ to last ])
+json_start <- regexpr("\\[", clean_response)[1]
+json_end <- tail(gregexpr("\\]", clean_response)[[1]], 1)
+
+if (json_start > 0 && json_end > 0) {
+  clean_response <- substr(clean_response, json_start, json_end)
+}
+
+# Create dataframe with cleaned response
+gifts_df <- fromJSON(clean_response) |>
+  as_tibble() |>
+  mutate(
+    date = ymd(date),
+    value = as.numeric(value)
+  )
+
+gifts_df
+```
+
+## 6. Basic Analysis
+
+Run this code block to see some basic analysis of the extracted gifts.
+```{r basic-analysis}
+# Count gifts by recipient
+gifts_df |>
+  count(name_and_title, sort = TRUE)
+
+# Find the most expensive gifts
+gifts_df |>
+  arrange(desc(value)) |>
+  head(10)
+```
+
+**Stop and save your work (File -> Save).**
